@@ -2,7 +2,7 @@
 #coding=utf-8
 
 '''
-To convert GC data to a summary txt file
+To convert GC-MS data to a summary txt file
 
 Codes needed to be changed:
 1. Change the relative folder position (folderPrefix = "...")
@@ -17,8 +17,8 @@ __version__ = "1.2"
 
 
 # Preparation
-folderPrefix = "\\20160413_blank\\"
-end = 30        # from ****01.D to ****(end).D
+folderPrefix = "\\20160413_CO2 Standard Curve\\6500 ppm\\"
+end = 10        # from ****01.D to ****(end).D
 
 FID_CB_LINEAR_A = 3164192   # Area = a + b * ppm
 FID_CB_LINEAR_B = 115420
@@ -132,7 +132,7 @@ def obtainArea(folderName):
     position = path + "\\rteres.txt"
 
     count = 0
-    flagCountFID, flagCountTCD = 100, 100 # No flagCouint exists
+    flagCountFID, flagCountMS = 100, 100 # No flagCouint exists
     flagStartFID_CB = False # When True: start to collect data from FID
     flagStartMS_CB, flagStartMS_CO2 = False, False # When True: start to collect data from MS
 
@@ -145,7 +145,7 @@ def obtainArea(folderName):
                 currentLine += letter
 
         # Record the time
-        if "\xdb\x8f7h\xe5e\x1fg" in currentLine:
+        if "\xb2\xc9\xbc\xaf" in currentLine:
             splitting = currentLine.split(' ')
             # Cancle empty entries
             new_splitting = []
@@ -153,8 +153,9 @@ def obtainArea(folderName):
                 if not item == '':
                     new_splitting.append(item)
             splitting = new_splitting
-            date = str2date(splitting[2])
-            time = str2time(splitting[3])
+            #date = str2date(splitting[2])                       # Currently unresolved
+            date = str2date("2016-01-01")
+            time = str2time(splitting[5] + ":00")
             totalminute = date[3] * 24 * 60 + time[4]
 
         # Find the MS signal
@@ -175,7 +176,7 @@ def obtainArea(folderName):
                 MS_time = float(splitting[1])
                 if 5.2 < MS_time < 5.6:
                     MS_CB_area = float(splitting[-3])
-            except ValueError:     # End the finding
+            except IndexError:     # End the finding
                 flagStartMS_CB = False
                 # If FID_area is not attained
                 try:
@@ -187,7 +188,7 @@ def obtainArea(folderName):
                 MS_time = float(splitting[1])
                 if 3.7 < MS_time < 4.1:
                     MS_CO2_area = float(splitting[-3])
-            except ValueError:     # End the finding
+            except IndexError:     # End the finding
                 flagStartMS_CO2 = False
                 # If FID_area is not attained
                 try:
@@ -213,7 +214,7 @@ def obtainArea(folderName):
                 FID_CB_time = float(splitting[1])
                 if 6.0 < FID_CB_time < 6.4:
                     FID_CB_area = float(splitting[-3])
-            except ValueError:     # End the finding
+            except IndexError:     # End the finding
                 flagStartFID_CB = False
                 # If FID_area is not attained
                 try:
