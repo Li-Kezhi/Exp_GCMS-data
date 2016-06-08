@@ -2,7 +2,7 @@
 #coding=utf-8
 
 '''
-To convert GC-MS data to a summary txt file
+To convert GC data to a summary txt file
 
 Codes needed to be changed:
 1. Change the relative folder position (folderPrefix = "...")
@@ -12,13 +12,19 @@ Codes needed to be changed:
 import os
 
 __author__ = "LI Kezhi" 
-__date__ = "$2016-04-14$"
-__version__ = "1.2"
+__date__ = "$2016-06-08$"
+__version__ = "1.3"
 
+# Plotting choice
+plottingChoice = True
+
+if plottingChoice == True:
+    import numpy as np
+    import matplotlib.pyplot as plt
 
 # Preparation
-folderPrefix = "\\20160413_CO2 Standard Curve\\6500 ppm\\"
-end = 10        # from ****01.D to ****(end).D
+folderPrefix = "\\20160608_Co_Cube\\Adsorption\\"
+end = 16        # from ****01.D to ****(end).D
 
 FID_CB_LINEAR_A = 3164192   # Area = a + b * ppm
 FID_CB_LINEAR_B = 115420
@@ -129,12 +135,13 @@ def obtainArea(folderName):
     # Preparation of file position
     path = os.getcwd()
     path += folderName
-    position = path + "\\rteres.txt"
+    position = path + "\\Report.txt"
 
     count = 0
     flagCountFID, flagCountMS = 100, 100 # No flagCouint exists
     flagStartFID_CB = False # When True: start to collect data from FID
     flagStartMS_CB, flagStartMS_CO2 = False, False # When True: start to collect data from MS
+    flagContinueFID_CB, flagContinueMS_CB, flagContinueMS_CO2 = True, True, True # Omit the unexpected ending
 
     for line in open(position, 'r'):
         count +=1
@@ -174,30 +181,38 @@ def obtainArea(folderName):
 
             try:
                 MS_time = float(splitting[1])
-                if 5.2 < MS_time < 5.6:
+                if 4.85 < MS_time < 5.15:
                     MS_CB_area = float(splitting[-3])
             except IndexError:     # End the finding
-                flagStartMS_CB = False
-                # If FID_area is not attained
-                try:
-                    MS_CB_area
-                except:
-                    MS_CB_area = 0.0
+                if flagContinueMS_CB == True:      # Omit the unexpected ending when meeting the space line
+                    flagContinueMS_CB = False
+                else:
+                    flagContinueMS_CB = True
+                    flagStartMS_CB = False
+                    # If FID_area is not attained
+                    try:
+                        MS_CB_area
+                    except:
+                        MS_CB_area = 0.0
 
             try:
                 MS_time = float(splitting[1])
                 if 3.7 < MS_time < 4.1:
                     MS_CO2_area = float(splitting[-3])
             except IndexError:     # End the finding
-                flagStartMS_CO2 = False
-                # If FID_area is not attained
-                try:
-                    MS_CO2_area
-                except:
-                    MS_CO2_area = 0.0
+                if flagContinueMS_CO2 == True:      # Omit the unexpected ending when meeting the space line
+                    flagContinueMS_CO2 = False
+                else:
+                    flagContinueMS_CO2 = True
+                    flagStartMS_CO2 = False
+                    # If FID_area is not attained
+                    try:
+                        MS_CO2_area
+                    except:
+                        MS_CO2_area = 0.0
 
         # Find the FID signal
-        if "FID2A.ch" in currentLine:
+        if "FID1A.ch" in currentLine:
             flagCountFID = -5
         if flagCountFID == 0:
             flagStartFID_CB = True
@@ -212,15 +227,19 @@ def obtainArea(folderName):
 
             try:
                 FID_CB_time = float(splitting[1])
-                if 6.0 < FID_CB_time < 6.4:
+                if 4.95 < FID_CB_time < 5.25:
                     FID_CB_area = float(splitting[-3])
             except IndexError:     # End the finding
-                flagStartFID_CB = False
-                # If FID_area is not attained
-                try:
-                    FID_CB_area
-                except:
-                    FID_CB_area = 0.0
+                if flagContinueFID_CB == True:      # Omit the unexpected ending when meeting the space line
+                    flagContinueFID_CB = False
+                else:
+                    flagContinueFID_CB = True
+                    flagStartFID_CB = False
+                    # If FID_area is not attained
+                    try:
+                        FID_CB_area
+                    except:
+                        FID_CB_area = 0.0
 
 
 
@@ -262,3 +281,26 @@ input.write("Index  Sampling Time (min)  Toluene Area (FID)  Toluene Concentrati
 for item in result:
     input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7]))
 input.close()
+
+# Plotting
+if plottingChoice == True:
+    for item in result:
+        plt.scatter(item[1], item[3])
+    plt.xlabel("Time (min)")
+    plt.ylabel("Concentration (ppm)")
+    plt.title("FID - CB")
+    plt.show()
+
+    for item in result:
+        plt.scatter(item[1], item[5])
+    plt.xlabel("Time (min)")
+    plt.ylabel("Concentration (ppm)")
+    plt.title("MS - CB")
+    plt.show()
+
+    for item in result:
+        plt.scatter(item[1], item[7])
+    plt.xlabel("Time (min)")
+    plt.ylabel("Concentration (ppm)")
+    plt.title("MS - CO2")
+    plt.show()
