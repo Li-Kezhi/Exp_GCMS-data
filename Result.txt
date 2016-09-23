@@ -1,0 +1,6 @@
+Index  Sampling Time (min)  CB Area (FID)  CB Concentration (ppm)  CB Area (ECD)  CB Concentration (ppm)
+  1      0       20.8       20.8     1710.5     1710.5
+  2      3       66.6       66.6     1741.8     1741.8
+  3      7       81.2       81.2     1745.8     1745.8
+  4     10       84.6       84.6     1726.7     1726.7
+  5     13       91.5       91.5     1715.0     1715.0
