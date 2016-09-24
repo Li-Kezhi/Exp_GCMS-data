@@ -6,108 +6,43 @@ To convert GC data to a summary txt file
 
 Codes needed to be changed:
 1. Change the relative folder position (folderPrefix = "...")
-2. Change the end of the data (end = 96)
-'''  
+'''
 
 import os
+import time
 
 __author__ = "LI Kezhi" 
-__date__ = "$2016-02-18$"
-__version__ = "1.2"
+__date__ = "$2016-09.24$"
+__version__ = "1.4"
+
+# Plotting choice
+plottingChoice = True
+
+if plottingChoice == True:
+    import numpy as np
+    import matplotlib.pyplot as plt
 
 
 # Preparation
 folderPrefix = "\\TEST1_FRANCO 2015-12-10 10-50-15\\001F01"
-end = 5        # from ****01.D to ****(end).D
 
 FIDAREA_CONCENTRATION_RATIO = 2212.0 / 1000   # Area / ppm = Ratio
 TCD_LINEAR_A = -68.721   # Area = a + b * ppm
 TCD_LINEAR_B = 0.7814
 
 
-def str2date(strDate):
-    '''
-    Convert string date to int
-
-    strDate: (str)
-        Example: 2016-02-18
-    Return: (list: int)[year, month, day, totalDay]
-        totalDay = 1 when it is 2016-01-01
-    '''
-
-    splitting = strDate.split('-')
-    year = int(splitting[0])
-    month = int(splitting[1])
-    day = int(splitting[2])
-
-    totalDay = day                # totalDay = 1 when it is 2016-01-01
-
-    # Leap Year
-    def leapYear(year):
-        LeapYear = False
-        if year % 4 == 0:
-            LeapYear = True
-            if year % 100 == 0:
-                LeapYear = False
-                if year % 400 == 0:
-                    LeapYear = True
-        return LeapYear
-
-    LeapYear = leapYear(year)
-
-    # Year
-    for countYear in range(2016, year):
-        if leapYear(countYear) == True:
-            totalDay += 366
-        else:
-            totalDay += 365 
-
-    # Month
-    if month > 1:
-        totalDay += 31
-    if month > 2:
-        if LeapYear == True:
-            totalDay += 29
-        else:
-            totalDay += 28
-    if month > 3:
-        totalDay += 31
-    if month > 4:
-        totalDay += 30
-    if month > 5:
-        totalDay += 31
-    if month > 6:
-        totalDay += 30
-    if month > 7:
-        totalDay += 31
-    if month > 8:
-        totalDay += 31
-    if month > 9:
-        totalDay += 30
-    if month > 10:
-        totalDay += 31
-    if month > 11:
-        totalDay += 30
-    
-    return [year, month, day, totalDay]
-
-def str2time(strTime):
-    '''
-    Convert string time to data
-
-    strTime: (str)
-        Example: 21:43:05
-    Return: (list)[hour, minute, second, totalhour, totalminute, totalsecond]
-        totalsecond = 0 when 00:00:00
-    '''
-    splitting = strTime.split(':')
-    hour = int(splitting[0])
-    minute = int(splitting[1])
-    second = int(splitting[2])
-    totalsecond = 3600 * hour + 60 * minute + second
-    totalminute = totalsecond / 60.0
-    totalhour = totalminute / 60.0
-    return [hour, minute, second, totalhour, totalminute, totalsecond]
+def getTime(filename):
+    """
+    Get file's modified time and created time
+    filename: filename
+    return: 
+        mtime: modified time
+        ctiem: created time
+    """
+    f = filename
+    m_time = os.stat(f).st_mtime
+    c_time = os.stat(f).st_ctime
+    return (m_time, c_time)
 
 def obtainArea(folderName):
     '''
@@ -127,10 +62,19 @@ def obtainArea(folderName):
     path += folderName
     position = path + "\\Report.TXT"
 
+    testOpenFile = open(position)
+    testOpenFile.close()
+
+    # Record the time
+    totalsecond = getTime(path + "\\FID1A.ch")[0]
+    totalminute = totalsecond / 60.0
+    
     count = 0
     flagCountFID, flagCountTCD = 100, 100 # No flagCouint exists
     flagStartFID = False # When True: start to collect data from FID
     flagStartTCD = False # When True: start to collect data from TCD
+    flagContinueFID, flagContinueTCD = True, True # Omit the unexpected ending
+
 
     for line in open(position, 'r'):
         count +=1
@@ -139,19 +83,6 @@ def obtainArea(folderName):
         for letter in line:
             if not letter == '\x00':
                 currentLine += letter
-
-        # Record the time
-        if "\xdb\x8f7h\xe5e\x1fg" in currentLine:
-            splitting = currentLine.split(' ')
-            # Cancle empty entries
-            new_splitting = []
-            for item in splitting:
-                if not item == '':
-                    new_splitting.append(item)
-            splitting = new_splitting
-            date = str2date(splitting[2])
-            time = str2time(splitting[3])
-            totalminute = date[3] * 24 * 60 + time[4]
 
         # Find the FID signal
         if "FID" in currentLine:
@@ -178,6 +109,13 @@ def obtainArea(folderName):
                     FID_area
                 except:
                     FID_area = 0.0
+            except IndexError:     # End the finding
+                flagStartFID = False
+                # If FID_area is not attained
+                try:
+                    FID_area
+                except:
+                    FID_area = 0.0                    
 
         # Find the TCD signal
         if "TCD" in currentLine:
@@ -204,37 +142,77 @@ def obtainArea(folderName):
                     TCD_area
                 except:
                     TCD_area = 0.0
-
+            except IndexError:     # End the finding
+                flagStartFID = False
+                # If FID_area is not attained
+                try:
+                    FID_area
+                except:
+                    FID_area = 0.0
+                    
         flagCountFID += 1
         flagCountTCD += 1
-
+        
+        if vars().has_key('FID_area') == False:
+            FID_area = 0
+        if vars().has_key('TCD_area') == False:
+            TCD_area = 0 
+            
     return [totalminute, FID_area, TCD_area]
 
 
+if __main__ == "__main__":
 
+    result = []
+    
+    i = 0
+    while(True):
+        try:
+            foldersuffix = "%02d" % (i+1)
+            foldersuffix += ".D"                 # Example: \\WY-LSCO-HAC 2016-01-26 11-25-08\\001F0101.D
+            currentPath = folderPrefix + foldersuffix
+            
+            [time, FID_area, TCD_area] = obtainArea(currentPath)
 
-result = []
+            TolueneConcentration = FID_area / FIDAREA_CONCENTRATION_RATIO
+            CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
 
-for i in range(end):
-    foldersuffix = "%02d" % (i+1)
-    foldersuffix += ".D"                 # Example: \\WY-LSCO-HAC 2016-01-26 11-25-08\\001F0101.D
-    currentPath = folderPrefix + foldersuffix
+            if i == 0:
+                initialTime = time
 
-    [time, FID_area, TCD_area] = obtainArea(currentPath)
+            result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
+    
+            i += 1
+        except IOError:
+            print("%d files have been converted!" %i)
+            break
+        
+    # Save file
+    input = open("Result.txt", 'w')
+    input.write("Index     Sampling Time (min)     Toluene Area     Toluene Concentration (ppm)     CO2 Area     CO2 Concentration (ppm)\n")
+    for item in result:
+        input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5]))
+    input.close()
+    
+    # Plotting
+    if plottingChoice == True:
+        for item in result:
+            plt.scatter(item[1], item[3])
+        plt.xlabel("Time (min)")
+        plt.ylabel("Concentration (ppm)")
+        plt.title("FID - CB")
+        plt.show()
 
-    TolueneConcentration = FID_area / FIDAREA_CONCENTRATION_RATIO
-    CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
+        for item in result:
+            plt.scatter(item[1], item[5])
+        plt.xlabel("Time (min)")
+        plt.ylabel("Concentration (ppm)")
+        plt.title("MS - CB")
+        plt.show()
 
-    if i == 0:
-        initialTime = time
-
-    result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
-    if i > 1 and result[-1][1] < result[-2][1]:
-        result[-1][1] += 60 * 12   # Correct the change from 12:59:00 am to 01:00:00 pm
-
-# Save file
-input = open("Result.txt", 'w')
-input.write("Index     Sampling Time (min)     Toluene Area     Toluene Concentration (ppm)     CO2 Area     CO2 Concentration (ppm)\n")
-for item in result:
-    input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5]))
-input.close()
+        for item in result:
+            plt.scatter(item[1], item[7])
+        plt.xlabel("Time (min)")
+        plt.ylabel("Concentration (ppm)")
+        plt.title("MS - CO2")
+        plt.show()
