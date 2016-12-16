@@ -24,11 +24,13 @@ if plottingChoice == True:
 
 
 # Preparation
-folderPrefix = "\\TEST1_FRANCO 2015-12-10 10-50-15\\001F01"
+folderPrefix = "/001F01"
 
-FIDAREA_CONCENTRATION_RATIO = 2212.0 / 1000   # Area / ppm = Ratio
-TCD_LINEAR_A = -68.721   # Area = a + b * ppm
-TCD_LINEAR_B = 0.7814
+# FIDAREA_CONCENTRATION_RATIO = 1000 / 1000   # Area / ppm = Ratio
+FID_LINEAR_A = 2.2811
+FID_LINEAR_B = 1.6033
+TCD_LINEAR_A = -1.3148    # Area = a + b * ppm
+TCD_LINEAR_B = 0.4526
 
 
 def getTime(filename):
@@ -60,13 +62,13 @@ def obtainArea(folderName):
     # Preparation of file position
     path = os.getcwd()
     path += folderName
-    position = path + "\\Report.TXT"
+    position = path + "/Report.TXT"
 
     testOpenFile = open(position)
     testOpenFile.close()
 
     # Record the time
-    totalsecond = getTime(path + "\\FID1A.ch")[0]
+    totalsecond = getTime(path + "/FID2A.ch")[0]
     totalminute = totalsecond / 60.0
     
     count = 0
@@ -100,8 +102,8 @@ def obtainArea(folderName):
 
             try:
                 FID_time = float(splitting[1])
-                if 1.8 < FID_time < 1.9:
-                    FID_area = float(splitting[-3])
+                if 2.5 < FID_time < 2.6:
+                    FID_area = float(splitting[4])
             except ValueError:     # End the finding
                 flagStartFID = False
                 # If FID_area is not attained
@@ -133,7 +135,7 @@ def obtainArea(folderName):
 
             try:
                 TCD_time = float(splitting[1])
-                if 1.7 < FID_time < 1.8:
+                if 1.9 < TCD_time < 2.0:
                     TCD_area = float(splitting[-3])
             except ValueError:     # End the finding
                 flagStartTCD = False
@@ -146,9 +148,9 @@ def obtainArea(folderName):
                 flagStartFID = False
                 # If FID_area is not attained
                 try:
-                    FID_area
+                    TCD_area
                 except:
-                    FID_area = 0.0
+                    TCD_area = 0.0
                     
         flagCountFID += 1
         flagCountTCD += 1
@@ -161,58 +163,58 @@ def obtainArea(folderName):
     return [totalminute, FID_area, TCD_area]
 
 
-if __main__ == "__main__":
+# if __main__ == "__main__":
 
-    result = []
-    
-    i = 0
-    while(True):
-        try:
-            foldersuffix = "%02d" % (i+1)
-            foldersuffix += ".D"                 # Example: \\WY-LSCO-HAC 2016-01-26 11-25-08\\001F0101.D
-            currentPath = folderPrefix + foldersuffix
-            
-            [time, FID_area, TCD_area] = obtainArea(currentPath)
+result = []
 
-            TolueneConcentration = FID_area / FIDAREA_CONCENTRATION_RATIO
-            CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
-
-            if i == 0:
-                initialTime = time
-
-            result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
-    
-            i += 1
-        except IOError:
-            print("%d files have been converted!" %i)
-            break
+i = 0
+while(True):
+    try:
+        foldersuffix = "%02d" % (i+1)
+        foldersuffix += ".D"                 # Example: \\WY-LSCO-HAC 2016-01-26 11-25-08\\001F0101.D
+        currentPath = folderPrefix + foldersuffix
         
-    # Save file
-    input = open("Result.txt", 'w')
-    input.write("Index     Sampling Time (min)     Toluene Area     Toluene Concentration (ppm)     CO2 Area     CO2 Concentration (ppm)\n")
-    for item in result:
-        input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5]))
-    input.close()
+        [time, FID_area, TCD_area] = obtainArea(currentPath)
+
+        TolueneConcentration = (FID_area - FID_LINEAR_A) / FID_LINEAR_B
+        CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
+
+        if i == 0:
+            initialTime = time
+
+        result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
+
+        i += 1
+    except IOError:
+        print("%d files have been converted!" %i)
+        break
     
-    # Plotting
-    if plottingChoice == True:
-        for item in result:
-            plt.scatter(item[1], item[3])
-        plt.xlabel("Time (min)")
-        plt.ylabel("Concentration (ppm)")
-        plt.title("FID - CB")
-        plt.show()
+# Save file
+input = open("Result.txt", 'w')
+input.write("Index     Sampling Time (min)     Toluene Area     Toluene Concentration (ppm)     CO2 Area     CO2 Concentration (ppm)\n")
+for item in result:
+    input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5]))
+input.close()
 
-        for item in result:
-            plt.scatter(item[1], item[5])
-        plt.xlabel("Time (min)")
-        plt.ylabel("Concentration (ppm)")
-        plt.title("MS - CB")
-        plt.show()
+# Plotting
+if plottingChoice == True:
+    for item in result:
+        plt.scatter(item[1], item[3])
+    plt.xlabel("Time (min)")
+    plt.ylabel("Concentration (ppm)")
+    plt.title("FID - CB")
+    plt.show()
 
-        for item in result:
-            plt.scatter(item[1], item[7])
-        plt.xlabel("Time (min)")
-        plt.ylabel("Concentration (ppm)")
-        plt.title("MS - CO2")
-        plt.show()
+    # for item in result:
+    #     plt.scatter(item[1], item[5])
+    # plt.xlabel("Time (min)")
+    # plt.ylabel("Concentration (ppm)")
+    # plt.title("MS - CB")
+    # plt.show()
+
+    for item in result:
+        plt.scatter(item[1], item[5])
+    plt.xlabel("Time (min)")
+    plt.ylabel("Concentration (ppm)")
+    plt.title("TCD - CO2")
+    plt.show()
