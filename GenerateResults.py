@@ -12,8 +12,8 @@ import os
 import time
 
 __author__ = "LI Kezhi" 
-__date__ = "$2016-09.24$"
-__version__ = "1.4"
+__date__ = "$2016-12-16$"
+__version__ = "1.4.2"
 
 # Plotting choice
 plottingChoice = True
@@ -26,8 +26,7 @@ if plottingChoice == True:
 # Preparation
 folderPrefix = "/001F01"
 
-# FIDAREA_CONCENTRATION_RATIO = 1000 / 1000   # Area / ppm = Ratio
-FID_LINEAR_A = 2.2811
+FID_LINEAR_A = 2.2811    # Area = a + b * ppm
 FID_LINEAR_B = 1.6033
 TCD_LINEAR_A = -1.3148    # Area = a + b * ppm
 TCD_LINEAR_B = 0.4526
@@ -51,13 +50,13 @@ def obtainArea(folderName):
     Return the given folder's FID area data
     
     folderName: Relative folder path (string)
-        Example: folderName = "\\001F0101.D"
+        Example: folderName = "/001F0101.D"
     Return: (list)
         totalminute (float)
         FID area of toluene (float)
-            Retention time: 1.8 ~ 1.9 min
+            Retention time: t1 ~ t2 min
         TCD area of CO2 (float)
-            Retention time: 1.7 ~ 1.8 min
+            Retention time: t3 ~ t4 min
     '''
     # Preparation of file position
     path = os.getcwd()
@@ -163,58 +162,50 @@ def obtainArea(folderName):
     return [totalminute, FID_area, TCD_area]
 
 
-# if __main__ == "__main__":
+if __name__ == "__main__":
+    result = []
 
-result = []
+    i = 0
+    while(True):
+        try:
+            foldersuffix = "%02d" % (i+1)
+            foldersuffix += ".D"                 # Example: /001F0101.D
+            currentPath = folderPrefix + foldersuffix
+            
+            [time, FID_area, TCD_area] = obtainArea(currentPath)
 
-i = 0
-while(True):
-    try:
-        foldersuffix = "%02d" % (i+1)
-        foldersuffix += ".D"                 # Example: \\WY-LSCO-HAC 2016-01-26 11-25-08\\001F0101.D
-        currentPath = folderPrefix + foldersuffix
+            TolueneConcentration = (FID_area - FID_LINEAR_A) / FID_LINEAR_B
+            CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
+
+            if i == 0:
+                initialTime = time
+
+            result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
+
+            i += 1
+        except IOError:
+            print("%d files have been converted!" %i)
+            break
         
-        [time, FID_area, TCD_area] = obtainArea(currentPath)
-
-        TolueneConcentration = (FID_area - FID_LINEAR_A) / FID_LINEAR_B
-        CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
-
-        if i == 0:
-            initialTime = time
-
-        result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
-
-        i += 1
-    except IOError:
-        print("%d files have been converted!" %i)
-        break
-    
-# Save file
-input = open("Result.txt", 'w')
-input.write("Index     Sampling Time (min)     Toluene Area     Toluene Concentration (ppm)     CO2 Area     CO2 Concentration (ppm)\n")
-for item in result:
-    input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5]))
-input.close()
-
-# Plotting
-if plottingChoice == True:
+    # Save file
+    input = open("Result.txt", 'w')
+    input.write("Index     SamplingTime(min)     TolueneArea     TolueneConcentration(ppm)     CO2Area     CO2Concentration(ppm)\n")
     for item in result:
-        plt.scatter(item[1], item[3])
-    plt.xlabel("Time (min)")
-    plt.ylabel("Concentration (ppm)")
-    plt.title("FID - CB")
-    plt.show()
+        input.write("%3d   %4d   %8.1f   %8.1f   %8.1f   %8.1f\n" %(item[0], item[1], item[2], item[3], item[4], item[5]))
+    input.close()
 
-    # for item in result:
-    #     plt.scatter(item[1], item[5])
-    # plt.xlabel("Time (min)")
-    # plt.ylabel("Concentration (ppm)")
-    # plt.title("MS - CB")
-    # plt.show()
+    # Plotting
+    if plottingChoice == True:
+        for item in result:
+            plt.scatter(item[1], item[3])
+        plt.xlabel("Time (min)")
+        plt.ylabel("Concentration (ppm)")
+        plt.title("FID - Toluene")
+        plt.show()
 
-    for item in result:
-        plt.scatter(item[1], item[5])
-    plt.xlabel("Time (min)")
-    plt.ylabel("Concentration (ppm)")
-    plt.title("TCD - CO2")
-    plt.show()
+        for item in result:
+            plt.scatter(item[1], item[5])
+        plt.xlabel("Time (min)")
+        plt.ylabel("Concentration (ppm)")
+        plt.title("TCD - CO2")
+        plt.show()
