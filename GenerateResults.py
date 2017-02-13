@@ -12,8 +12,8 @@ import os
 import time
 
 __author__ = "LI Kezhi" 
-__date__ = "$2016-12-16$"
-__version__ = "1.4.2"
+__date__ = "$2017-02-13$"
+__version__ = "1.4.3"
 
 # Plotting choice
 plottingChoice = True
@@ -24,12 +24,12 @@ if plottingChoice == True:
 
 
 # Preparation
-folderPrefix = "/001F01"
+folderPrefix = "/NV-F01"
 
-FID_LINEAR_A = 2.2811    # Area = a + b * ppm
-FID_LINEAR_B = 1.6033
-TCD_LINEAR_A = -1.3148    # Area = a + b * ppm
-TCD_LINEAR_B = 0.4526
+FID_LINEAR_A = 0    # Area = a + b * ppm
+FID_LINEAR_B = 1 / 0.1881
+FID_CH4_LINEAR_A = 0    # Area = a + b * ppm
+FID_CH4_LINEAR_B = 1 / 0.5618
 
 
 def getTime(filename):
@@ -55,7 +55,7 @@ def obtainArea(folderName):
         totalminute (float)
         FID area of toluene (float)
             Retention time: t1 ~ t2 min
-        TCD area of CO2 (float)
+        FID area of CO2 (float)
             Retention time: t3 ~ t4 min
     '''
     # Preparation of file position
@@ -67,14 +67,14 @@ def obtainArea(folderName):
     testOpenFile.close()
 
     # Record the time
-    totalsecond = getTime(path + "/FID2A.ch")[0]
+    totalsecond = getTime(path + "/FID1A.ch")[0]
     totalminute = totalsecond / 60.0
     
     count = 0
-    flagCountFID, flagCountTCD = 100, 100 # No flagCouint exists
+    flagCountFID, flagCountFID_CH4 = 100, 100 # No flagCouint exists
     flagStartFID = False # When True: start to collect data from FID
-    flagStartTCD = False # When True: start to collect data from TCD
-    flagContinueFID, flagContinueTCD = True, True # Omit the unexpected ending
+    flagStartFID_CH4 = False # When True: start to collect data from FID_CH4
+    flagContinueFID, flagContinueFID_CH4 = True, True # Omit the unexpected ending
 
 
     for line in open(position, 'r'):
@@ -86,7 +86,7 @@ def obtainArea(folderName):
                 currentLine += letter
 
         # Find the FID signal
-        if "FID" in currentLine:
+        if "FID1" in currentLine:
             flagCountFID = -5
         if flagCountFID == 0:
             flagStartFID = True
@@ -101,8 +101,8 @@ def obtainArea(folderName):
 
             try:
                 FID_time = float(splitting[1])
-                if 2.5 < FID_time < 2.6:
-                    FID_area = float(splitting[4])
+                if 2.33 < FID_time < 2.43:
+                    FID_area = float(splitting[-3])
             except ValueError:     # End the finding
                 flagStartFID = False
                 # If FID_area is not attained
@@ -118,12 +118,12 @@ def obtainArea(folderName):
                 except:
                     FID_area = 0.0                    
 
-        # Find the TCD signal
-        if "TCD" in currentLine:
-            flagCountTCD = -5
-        if flagCountTCD == 0:
-            flagStartTCD = True
-        if flagStartTCD == True:
+        # Find the FID_CH4 signal
+        if "FID2" in currentLine:
+            flagCountFID_CH4 = -5
+        if flagCountFID_CH4 == 0:
+            flagStartFID_CH4 = True
+        if flagStartFID_CH4 == True:
             splitting = currentLine.split(' ')
             # Cancle empty entries
             new_splitting = []
@@ -133,33 +133,33 @@ def obtainArea(folderName):
             splitting = new_splitting
 
             try:
-                TCD_time = float(splitting[1])
-                if 1.9 < TCD_time < 2.0:
-                    TCD_area = float(splitting[-3])
+                FID_CH4_time = float(splitting[1])
+                if 1.55 < FID_CH4_time < 1.65:
+                    FID_CH4_area = float(splitting[-3])
             except ValueError:     # End the finding
-                flagStartTCD = False
+                flagStartFID_CH4 = False
                 # If FID_area is not attained
                 try:
-                    TCD_area
+                    FID_CH4_area
                 except:
-                    TCD_area = 0.0
+                    FID_CH4_area = 0.0
             except IndexError:     # End the finding
                 flagStartFID = False
                 # If FID_area is not attained
                 try:
-                    TCD_area
+                    FID_CH4_area
                 except:
-                    TCD_area = 0.0
+                    FID_CH4_area = 0.0
                     
         flagCountFID += 1
-        flagCountTCD += 1
+        flagCountFID_CH4 += 1
         
         if vars().has_key('FID_area') == False:
             FID_area = 0
-        if vars().has_key('TCD_area') == False:
-            TCD_area = 0 
+        if vars().has_key('FID_CH4_area') == False:
+            FID_CH4_area = 0 
             
-    return [totalminute, FID_area, TCD_area]
+    return [totalminute, FID_area, FID_CH4_area]
 
 
 if __name__ == "__main__":
@@ -172,15 +172,15 @@ if __name__ == "__main__":
             foldersuffix += ".D"                 # Example: /001F0101.D
             currentPath = folderPrefix + foldersuffix
             
-            [time, FID_area, TCD_area] = obtainArea(currentPath)
+            [time, FID_area, FID_CH4_area] = obtainArea(currentPath)
 
             TolueneConcentration = (FID_area - FID_LINEAR_A) / FID_LINEAR_B
-            CO2Concentration = (TCD_area - TCD_LINEAR_A) / TCD_LINEAR_B
+            CO2Concentration = (FID_CH4_area - FID_CH4_LINEAR_A) / FID_CH4_LINEAR_B
 
             if i == 0:
                 initialTime = time
 
-            result.append([i+1, time - initialTime, FID_area, TolueneConcentration, TCD_area, CO2Concentration])
+            result.append([i+1, time - initialTime, FID_area, TolueneConcentration, FID_CH4_area, CO2Concentration])
 
             i += 1
         except IOError:
@@ -207,5 +207,5 @@ if __name__ == "__main__":
             plt.scatter(item[1], item[5])
         plt.xlabel("Time (min)")
         plt.ylabel("Concentration (ppm)")
-        plt.title("TCD - CO2")
+        plt.title("FID_CH4 - CO2")
         plt.show()
