@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #coding=utf-8
 
 '''
@@ -18,7 +18,7 @@ __version__ = "1.4.3"
 # Plotting choice
 plottingChoice = True
 
-if plottingChoice == True:
+if plottingChoice is True:
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -36,7 +36,7 @@ def getTime(filename):
     """
     Get file's modified time and created time
     filename: filename
-    return: 
+    return:
         mtime: modified time
         ctiem: created time
     """
@@ -48,7 +48,7 @@ def getTime(filename):
 def obtainArea(folderName):
     '''
     Return the given folder's FID area data
-    
+
     folderName: Relative folder path (string)
         Example: folderName = "/001F0101.D"
     Return: (list)
@@ -69,7 +69,7 @@ def obtainArea(folderName):
     # Record the time
     totalsecond = getTime(path + "/FID1A.ch")[0]
     totalminute = totalsecond / 60.0
-    
+
     count = 0
     flagCountFID, flagCountFID_CH4 = 100, 100 # No flagCouint exists
     flagStartFID = False # When True: start to collect data from FID
@@ -78,7 +78,7 @@ def obtainArea(folderName):
 
 
     for line in open(position, 'r'):
-        count +=1
+        count += 1
         # Cancle the unexpected \x00 in the file
         currentLine = ""
         for letter in line:
@@ -90,7 +90,7 @@ def obtainArea(folderName):
             flagCountFID = -5
         if flagCountFID == 0:
             flagStartFID = True
-        if flagStartFID == True:
+        if flagStartFID is True:
             splitting = currentLine.split(' ')
             # Cancle empty entries
             new_splitting = []
@@ -116,14 +116,14 @@ def obtainArea(folderName):
                 try:
                     FID_area
                 except:
-                    FID_area = 0.0                    
+                    FID_area = 0.0
 
         # Find the FID_CH4 signal
         if "FID2" in currentLine:
             flagCountFID_CH4 = -5
         if flagCountFID_CH4 == 0:
             flagStartFID_CH4 = True
-        if flagStartFID_CH4 == True:
+        if flagStartFID_CH4 is True:
             splitting = currentLine.split(' ')
             # Cancle empty entries
             new_splitting = []
@@ -150,15 +150,15 @@ def obtainArea(folderName):
                     FID_CH4_area
                 except:
                     FID_CH4_area = 0.0
-                    
+
         flagCountFID += 1
         flagCountFID_CH4 += 1
-        
-        if vars().has_key('FID_area') == False:
+
+        if vars().has_key('FID_area') is False:
             FID_area = 0
-        if vars().has_key('FID_CH4_area') == False:
-            FID_CH4_area = 0 
-            
+        if vars().has_key('FID_CH4_area') is False:
+            FID_CH4_area = 0
+
     return [totalminute, FID_area, FID_CH4_area]
 
 
@@ -166,12 +166,12 @@ if __name__ == "__main__":
     result = []
 
     i = 0
-    while(True):
+    while True:
         try:
             foldersuffix = "%02d" % (i+1)
             foldersuffix += ".D"                 # Example: /001F0101.D
             currentPath = folderPrefix + foldersuffix
-            
+
             [time, FID_area, FID_CH4_area] = obtainArea(currentPath)
 
             TolueneConcentration = (FID_area - FID_LINEAR_A) / FID_LINEAR_B
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         except IOError:
             print("%d files have been converted!" %i)
             break
-        
+
     # Save file
     input = open("Result.txt", 'w')
     input.write("Index     SamplingTime(min)     TolueneArea     TolueneConcentration(ppm)     CO2Area     CO2Concentration(ppm)\n")
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     input.close()
 
     # Plotting
-    if plottingChoice == True:
+    if plottingChoice is True:
         for item in result:
             plt.scatter(item[1], item[3])
         plt.xlabel("Time (min)")
