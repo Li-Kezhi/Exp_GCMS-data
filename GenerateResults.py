@@ -10,10 +10,11 @@ Codes needed to be changed:
 
 import os
 import time
+from __future__ import print_function
 
 __author__ = "LI Kezhi" 
-__date__ = "$2017-02-13$"
-__version__ = "1.4.3"
+__date__ = "$2017-02-26$"
+__version__ = "1.4.4"
 
 # Plotting choice
 plottingChoice = True
