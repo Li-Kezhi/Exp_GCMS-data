@@ -27,15 +27,28 @@ if plottingChoice is True:
 folderPrefix = '/'
 
 # Parameters
-NAME_FID = ('Toluene', 
-            'Chlorobenzene'
-           )
-RETENTION_TIME_FID = {NAME_FID[0]: 1.6,
-                      NAME_FID[1]: 5.4
-                     }
-LINEAR_PAR = {NAME_FID[0]: {'A':0, 'B':1},
-              NAME_FID[1]: {'A':0, 'B':1}
-             } # Area = a + b * ppm
+NAME_FID = (
+    'Toluene-FID',
+    'Chlorobenzene-FID'
+) # The name SHOULD be ended with '-FID'!
+RETENTION_TIME_FID = {
+    NAME_FID[0]: 1.593,
+    NAME_FID[1]: 5.3984
+}
+NAME_MS = (
+    'Toluene-MS',
+    'Chlorobenzene-MS'
+) # The name SHOULD be ended with '-MS'!
+RETENTION_TIME_MS = {
+    NAME_MS[0]: 4.516,
+    NAME_MS[1]: 4.865
+}
+LINEAR_PAR = {
+    NAME_FID[0]: {'A':0, 'B':1},
+    NAME_FID[1]: {'A':0, 'B':1},
+    NAME_MS[0]: {'A':0, 'B':1},
+    NAME_MS[1]: {'A':0, 'B':1}
+} # Area = a + b * ppm
 
 def getTime(filename):
     '''
@@ -50,27 +63,25 @@ def getTime(filename):
     c_time = os.stat(f).st_ctime
     return (m_time, c_time)
 
-def getConc(area, par_a, par_b):
+def getConc(intArea, par_a, par_b):
     '''
     Get concentration from integration area
     Area = a + b * ppm
     return:
         concentration
     '''
-    return (area - par_a) / par_b
+    return (intArea - par_a) / par_b
 
 def obtainArea(folderName):
     '''
-    Return the given folder's FID area data
+    Return the given folder's MS and FID area data
 
     folderName: Relative folder path (string)
         Example: folderName = '/001F0101.D'
     Return: (list)
         totalminute (float)
-        FID area of toluene (float)
-            Retention time: t1 ~ t2 min
-        FID area of CO2 (float)
-            Retention time: t3 ~ t4 min
+        MS/FID area of given substances (dict)
+            dict: substance -> integration area
     '''
     # Preparation of file position
     path = os.getcwd()
@@ -85,12 +96,32 @@ def obtainArea(folderName):
     totalminute = totalsecond / 60.0
 
     count = 0
-    flagCountFID = None # When flagCountFID == 0, begin analysing FID data
-    flagStartFID = False # When True: start to collect data from FID
+    flagCountFID, flagCountMS = None, None # When flagCountFID == 0, begin analysing FID data
+    flagStartFID, flagStartMS = False, False # When True: start to collect data from FID
 
     for line in open(position, 'r'):
         count += 1
         currentLine = line.rstrip()
+
+        # Find the MS signal
+        if '.ms]' in currentLine:
+            flagCountMS = -3
+        if flagCountMS == 0:
+            flagStartMS = True
+            MS_area = {}
+        if flagStartMS is True:
+            splitting = currentLine.split(',')
+
+            try:
+                MS_time = float(splitting[2])
+                for substance in NAME_MS:
+                    if -0.05 < MS_time - RETENTION_TIME_MS[substance] < 0.05:
+                        MS_area[substance] = float(splitting[-3])
+            except (ValueError, IndexError):     # End the finding
+                flagStartMS = False
+
+        if flagCountMS is not None:
+            flagCountMS += 1
 
         # Find the FID signal
         if '.ch]' in currentLine and 'FID' in currentLine:
@@ -112,13 +143,18 @@ def obtainArea(folderName):
         if flagCountFID is not None:
             flagCountFID += 1
 
-    result = [totalminute]
+    output = [totalminute]
+    result_area = {}
+    for substance in NAME_MS:
+        if not MS_area.has_key(substance):
+            MS_area[substance] = 0
+        result_area[substance] = MS_area[substance]
     for substance in NAME_FID:
         if not FID_area.has_key(substance):
             FID_area[substance] = 0
-        result.append(FID_area[substance])
-
-    return result
+        result_area[substance] = FID_area[substance]
+    output.append(result_area)
+    return output
 
 
 if __name__ == '__main__':
@@ -131,13 +167,18 @@ if __name__ == '__main__':
             # foldersuffix += '.D'                 # Example: /0801008.D
             currentPath = folderPrefix + foldersuffix
 
-            area = obtainArea(currentPath)
-            time = area[0]
+            crawled = obtainArea(currentPath)
+            time, area = crawled[0], crawled[1]
 
-            FID_area = {}
-            FID_Conc = {}
-            for index, substance in enumerate(NAME_FID):
-                FID_area[substance] = area[index + 1]
+            FID_area, MS_area = {}, {}
+            FID_Conc, MS_Conc = {}, {}
+            for substance in NAME_MS:
+                MS_area[substance] = area[substance]
+                a = LINEAR_PAR[substance]['A']
+                b = LINEAR_PAR[substance]['B']
+                MS_Conc[substance] = getConc(MS_area[substance], a, b)
+            for substance in NAME_FID:
+                FID_area[substance] = area[substance]
                 a = LINEAR_PAR[substance]['A']
                 b = LINEAR_PAR[substance]['B']
                 FID_Conc[substance] = getConc(FID_area[substance], a, b)
@@ -146,8 +187,13 @@ if __name__ == '__main__':
                 initialTime = time
 
             outLine = [i+1, time - initialTime]
+            resultName = []
+            for substance in NAME_MS:
+                outLine.extend([MS_area[substance], MS_Conc[substance]])
+                resultName.append(substance)
             for substance in NAME_FID:
                 outLine.extend([FID_area[substance], FID_Conc[substance]])
+                resultName.append(substance)
             result.append(outLine)
 
             i += 1
@@ -156,13 +202,16 @@ if __name__ == '__main__':
             break
 
     # Save file
-    input = open('Result.txt', 'w')
+    savedFile = open('Result.txt', 'w')
     titleText = 'Index     Time(min)     '
+    for substance in NAME_MS:
+        titleText += substance + '-Area     '
+        titleText += substance + '-Concentration(ppm)     '
     for substance in NAME_FID:
-        titleText += substance + 'Area-FID     '
-        titleText += substance + 'Concentration-FID(ppm)     '
-        titleText += '\n'
-    input.write(titleText)
+        titleText += substance + '-Area     '
+        titleText += substance + '-Concentration(ppm)     '
+    titleText += '\n'
+    savedFile.write(titleText)
     for item in result:
         dataText = ('%+3s   ' % item[0] +
                     '%4d   ' % item[1])
@@ -170,15 +219,18 @@ if __name__ == '__main__':
             if index > 1:
                 dataText += '%+12s   ' % item[index]
         dataText += '\n'
-        input.write(dataText)
-    input.close()
+        savedFile.write(dataText)
+    savedFile.close()
 
     # Plotting
     if plottingChoice is True:
-        for index, substance in enumerate(NAME_FID):
+        allName = NAME_MS + NAME_FID
+        for substance in allName:
             for item in result:
-                plt.scatter(item[1], item[3 + 2 * index])
+                x = item[1]
+                y = item[resultName.index(substance) * 2 + 2]
+                plt.scatter(x, y)
             plt.xlabel('Time (min)')
             plt.ylabel('Concentration (ppm)')
-            plt.title('FID - ' + substance)
+            plt.title(substance)
             plt.show()
