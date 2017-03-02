@@ -36,10 +36,6 @@ RETENTION_TIME_FID = {NAME_FID[0]: 1.6,
 LINEAR_PAR = {NAME_FID[0]: {'A':0, 'B':1},
               NAME_FID[1]: {'A':0, 'B':1}
              } # Area = a + b * ppm
-# FID_LINEAR_A = 0    # Area = a + b * ppm
-# FID_LINEAR_B = 1
-# FID_CH4_LINEAR_A = 0    # Area = a + b * ppm
-# FID_CH4_LINEAR_B = 1
 
 def getTime(filename):
     '''
