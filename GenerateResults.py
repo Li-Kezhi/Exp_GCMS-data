@@ -12,9 +12,9 @@ from __future__ import print_function
 import os
 import time
 
-__author__ = 'LI Kezhi'
-__date__ = '$2017-03-02$'
-__version__ = '1.4.6'
+__author__ = "LI Kezhi" 
+__date__ = "$2018-04-15$"
+__version__ = "1.4.7"
 
 # Plotting choice
 plottingChoice = True
@@ -24,16 +24,14 @@ if plottingChoice is True:
 
 
 # Preparation
-folderPrefix = '/'
+folderPrefix = '/001'
 
 # Parameters
 NAME_FID = (
-    'Toluene-FID',
-    'Chlorobenzene-FID'
+    'C6H6-FID',
 ) # The name SHOULD be ended with '-FID'!
 RETENTION_TIME_FID = {
-    NAME_FID[0]: 1.593,
-    NAME_FID[1]: 5.3984
+    NAME_FID[0]: 3.363,
 }
 NAME_MS = (
     'Toluene-MS',
@@ -44,8 +42,7 @@ RETENTION_TIME_MS = {
     NAME_MS[1]: 4.865
 }
 LINEAR_PAR = {
-    NAME_FID[0]: {'A':0, 'B':1},
-    NAME_FID[1]: {'A':0, 'B':1},
+    NAME_FID[0]: {'A':2756138.214, 'B':229347},
     NAME_MS[0]: {'A':0, 'B':1},
     NAME_MS[1]: {'A':0, 'B':1}
 } # Area = a + b * ppm
@@ -163,8 +160,8 @@ if __name__ == '__main__':
     i = 0
     while True:
         try:
-            foldersuffix = ('%02d'+'010'+'%02d'+'.D')  % ((i+1), (i+1))
-            # foldersuffix += '.D'                 # Example: /0801008.D
+            foldersuffix = ('%02d%03d'+'.D')  % ((i+1), (i+1))
+            # foldersuffix += '.D'                 # Example: /xxx08008.D
             currentPath = folderPrefix + foldersuffix
 
             crawled = obtainArea(currentPath)
@@ -228,7 +225,7 @@ if __name__ == '__main__':
         for substance in allName:
             for item in result:
                 x = item[1]
-                y = item[resultName.index(substance) * 2 + 2]
+                y = item[resultName.index(substance) * 2 + 3]
                 plt.scatter(x, y)
             plt.xlabel('Time (min)')
             plt.ylabel('Concentration (ppm)')
